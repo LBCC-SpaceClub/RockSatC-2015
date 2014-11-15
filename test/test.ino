@@ -1,12 +1,12 @@
 #define buffer_max 255  // Max size of each buffer
 #define time_max 60000  // Max runtime
 
-#define gateA 10
-#define gateB 11
-#define gateC 12
-#define pinD 13
-#define pinE 14
-#define pinF 15
+#define gateA 40
+#define gateB 41
+#define gateC 42
+#define pinD 43
+#define pinE 44
+#define pinF 45
 
 typedef struct gdata {
   /*
@@ -30,7 +30,7 @@ void setup(){
   // Pin num, function name, event to listen for
   // Coincidence gates A, B, C
   pinMode(gateA, INPUT);
-  attachInterrupt(gateA, interrupt_gate_A, LOW);
+  attachInterrupt(gateA, interrupt_gate_A, FALLING);
   pinMode(gateB, INPUT);
   attachInterrupt(gateB, interrupt_gate_B, LOW);
   pinMode(gateC, INPUT);
@@ -39,7 +39,7 @@ void setup(){
   pinMode(pinD, INPUT);
   attachInterrupt(pinD, interrupt_tube_D, LOW);
   pinMode(pinE, INPUT);
-  attachInterrupt(pinE, interrupt_tube_E, LOW);
+  attachInterrupt(pinE, interrupt_tube_E, FALLING);
   pinMode(pinF, INPUT);
   attachInterrupt(pinF, interrupt_tube_F, LOW);
 }
@@ -47,7 +47,7 @@ void setup(){
 void loop(){
   // Debugging only, fills the active buffer with sample data
   while(true){
-    process_interrupt(micros(), random(6));
+    //process_interrupt(micros(), random(6));
   }
 }
 
@@ -67,7 +67,7 @@ void write_to_sd(){
   Serial.print(!active_buffer); 
   Serial.print(" to the SD card.\n");
   Serial.println("First 10 lines of buffer:");
-  for(int i=0; i<10; i++){
+  for(int i=0; i<buffer_max; i++){
     Serial.print(buffer[!active_buffer][i].time);
     Serial.print("\t");
     Serial.println(buffer[!active_buffer][i].tubes);

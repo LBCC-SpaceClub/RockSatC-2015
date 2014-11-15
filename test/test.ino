@@ -1,43 +1,63 @@
-#define buffer_max 256  // Max size of each buffer
+#define buffer_max 255  // Max size of each buffer
 #define time_max 60000  // Max runtime
 
-#define pinA 10
+#define gateA 10
+#define gateB 11
+#define gateC 12
+#define pinD 13
+#define pinE 14
+#define pinF 15
 
 typedef struct gdata {
   /*
   Each reading has a 4 byte timestamp, and 1 byte of data
-  Variables used by interrupts should be considered volatile
+  Variables used by interrupts should be called volatile
   */
-  volatile unsigned long time;         // Our timestamp
-  volatile byte tubes;              // 8 bits to hold our 6 bit-sized measurements.
+  volatile unsigned long time;      // Our timestamp, limited to 71! minutes of run time
+  volatile byte tubes;              // 1 byte holds all 6, bit-sized measurements
 };
 
-gdata buffer[2][buffer_max];  // An array of 2 buffers
+gdata buffer[2][buffer_max+1];  // An array of 2 buffers, with space for 256 readings each
 boolean active_buffer;        // determines which buffer is ready for input
-byte buffer_index = 0;
-//unsigned long cur_time;
+byte buffer_index = 0;        // Counter to determine when the buffer is full
 
 void setup(){
-  // Debugging
+  // Debugging only, using serial is very slow.
   Serial.begin(115200);
+  Serial.println("LBCC RockSat-C code warming up...");
   
-  pinMode(pinA, INPUT);
-  attachInterrupt(pinA, gateA, LOW);
+  // Prepare input pins and begin interrupts
+  // Pin num, function name, event to listen for
+  // Coincidence gates A, B, C
+  pinMode(gateA, INPUT);
+  attachInterrupt(gateA, interrupt_gate_A, LOW);
+  pinMode(gateB, INPUT);
+  attachInterrupt(gateB, interrupt_gate_B, LOW);
+  pinMode(gateC, INPUT);
+  attachInterrupt(gateC, interrupt_gate_C, LOW);
+  // Individual tubes D, E, F
+  pinMode(pinD, INPUT);
+  attachInterrupt(pinD, interrupt_tube_D, LOW);
+  pinMode(pinE, INPUT);
+  attachInterrupt(pinE, interrupt_tube_E, LOW);
+  pinMode(pinF, INPUT);
+  attachInterrupt(pinF, interrupt_tube_F, LOW);
 }
 
 void loop(){
-  // Debugging, fill the active buffer with sample data
-  while(buffer_index<buffer_max){
-    buffer[active_buffer][buffer_index].time = micros();
-    buffer[active_buffer][buffer_index].tubes = random(6);
-    buffer_index++;
-  } // end while
-  
-  active_buffer = !active_buffer; // Switch between buffers
-  write_to_sd(); // Write old buffer to SD card
+  // Debugging only, fills the active buffer with sample data
+  while(true){
+    process_interrupt(micros(), random(6));
+  }
 }
 
 void write_to_sd(){
+  /*
+  Takes no parameters, toggles from active to inactive buffer, writes the (now)
+  inactive buffer to SD card.
+  */
+  active_buffer = !active_buffer; // Switch between buffers
+  
   /*
   All of this code is for debugging only, and will be replaced by a
   write to the SD card.
@@ -54,9 +74,38 @@ void write_to_sd(){
   }
 }
 
-void gateA(){ // event in tube A
-  buffer[active_buffer][buffer_index].time = micros();
-  buffer[active_buffer][buffer_index].tubes = 32;
+/*
+  One function per interrupt, passes time and event description for storage
+*/
+void interrupt_gate_A(){  // events in tubes F and E
+  process_interrupt(micros(), 35);
 }
-  
+void interrupt_gate_B(){  // events in tubes F and D
+  process_interrupt(micros(), 21);
+}
+void interrupt_gate_C(){  // events in tubes E and D
+  process_interrupt(micros(), 14);
+}
+void interrupt_tube_D(){
+  process_interrupt(micros(), 4);
+}
+void interrupt_tube_E(){
+  process_interrupt(micros(), 2);
+}
+void interrupt_tube_F(){
+  process_interrupt(micros(), 1);
+}
 
+void process_interrupt(unsigned long event_time, byte event_tube){
+  /*
+  Takes timestamp, and 1 byte describing which event was recorded, adds it to array
+  and increments buffer_index.  If array is full, writes active buffer to SD card.
+  Buffer_index overflows from 255 to 0, so it's ready for the secondary buffer.
+  */
+  // Should we worry about buffer flip while queued? I doubt it, but maybe.
+  buffer[active_buffer][buffer_index].time = event_time;
+  buffer[active_buffer][buffer_index].tubes = event_tube;
+  if(buffer_index++ == buffer_max){
+    write_to_sd();
+  }
+}

@@ -32,23 +32,25 @@ void setup(){
   pinMode(gateA, INPUT);
   attachInterrupt(gateA, interrupt_gate_A, FALLING);
   pinMode(gateB, INPUT);
-  attachInterrupt(gateB, interrupt_gate_B, LOW);
+  attachInterrupt(gateB, interrupt_gate_B, FALLING);
   pinMode(gateC, INPUT);
-  attachInterrupt(gateC, interrupt_gate_C, LOW);
+  attachInterrupt(gateC, interrupt_gate_C, FALLING);
   // Individual tubes D, E, F
   pinMode(pinD, INPUT);
-  attachInterrupt(pinD, interrupt_tube_D, LOW);
+  attachInterrupt(pinD, interrupt_tube_D, FALLING);
   pinMode(pinE, INPUT);
   attachInterrupt(pinE, interrupt_tube_E, FALLING);
   pinMode(pinF, INPUT);
-  attachInterrupt(pinF, interrupt_tube_F, LOW);
+  attachInterrupt(pinF, interrupt_tube_F, FALLING);
 }
 
 void loop(){
   // Debugging only, fills the active buffer with sample data
+  /*
   while(true){
     //process_interrupt(micros(), random(6));
   }
+  */
 }
 
 void write_to_sd(){

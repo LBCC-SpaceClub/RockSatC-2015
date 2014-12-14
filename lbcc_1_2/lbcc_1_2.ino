@@ -32,15 +32,12 @@ void setup(){
   // Debugging only, using serial is very slow.
   Serial.begin(9600); // 115200 or 9600?
   Serial.println("LBCC RockSat-C warming up...");
-  delay(400);  // Solves Due reset problem
+  // delay(400);  // Solves Due reset problem
   
-  // Prepare input pins and begin interrupt
-
   // Prepare port C by setting input and output pins.  
    DDRC |= B0000001;  // Changes pins 2-7 on port C to inputs
 
   // Pin num, function name, event to listen for
-  // Coincidence gates A, B, C
   pinMode(tube_interrupt, INPUT);
   attachInterrupt(tube_interrupt, record_event, FALLING);
   
@@ -105,33 +102,15 @@ void write_to_sd(){
   */
 }
 
-/*
-  One function per interrupt, passes time and event description for storage
-*/
 void record_event(){
   /*
-  Adds timestamp, and 1 byte describing status of all tubes to array, then increments
-  buffer_index.  When array is full, swaps buffers and calls write_to_sd().
+  Creates a new entry in the active buffer using the current time and tube status.
+  The status of all tubes is recorded simultaneously via port manipulation.
+  When buffer is full, swaps to secondary buffer and calls write_to_sd().
+  Remember, interrupt functions cannot take parameters.
   */
-  // Should we worry about buffer flip while queued? I doubt it, but maybe.
   buffer[active_buffer][buffer_index].time = micros();
-  buffer[active_buffer][buffer_index].tubes = PIND;
-  if(buffer_index++ == buffer_max){
-    write_to_sd();
-  }
-  process_interrupt(micros(), 35);
-  
-}
-
-void process_interrupt(unsigned long event_time, byte event_tube){
-  /*
-  Takes timestamp, and 1 byte describing which event was recorded, adds it to array
-  and increments buffer_index.  If array is full, writes active buffer to SD card.
-  Buffer_index overflows from 255 to 0, so it's ready for the secondary buffer.
-  */
-  // Should we worry about buffer flip while queued? I doubt it, but maybe.
-  buffer[active_buffer][buffer_index].time = event_time;
-  buffer[active_buffer][buffer_index].tubes = event_tube;
+  buffer[active_buffer][buffer_index].tubes = PINC; // Read all input pins on port C.
   if(buffer_index++ == buffer_max){
     write_to_sd();
   }

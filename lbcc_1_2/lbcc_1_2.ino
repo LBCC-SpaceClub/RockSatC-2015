@@ -3,12 +3,13 @@
 #define buffer_max 255  // Max size of each buffer
 #define time_max 3600000  // Max runtime (60 min)
 
-#define gateA 40
-#define gateB 41
-#define gateC 42
-#define pinD 43
-#define pinE 44
-#define pinF 45
+#define tube_interrupt 32
+#define tubeA 34
+#define tubeB 35
+#define tubeC 36
+#define tubeD 37
+#define tubeE 38
+#define tubeF 39
 
 #define SDPin 4  // CS pin for SD card socket, pin 4 on ethernet shield
 
@@ -17,7 +18,7 @@ typedef struct gdata {
   Each reading has a 4 byte timestamp, and 1 byte of data
   Variables used by interrupts should be called volatile
   */
-  volatile unsigned long time;      // Timestamp, limited to 71! minutes of run time
+  volatile unsigned long time;      // Timestamp, limited to 71 minutes of run time
   volatile byte tubes;              // 1 byte holds all 6, bit-sized measurements
 };
 
@@ -31,24 +32,14 @@ void setup(){
   // Debugging only, using serial is very slow.
   Serial.begin(9600); // 115200 or 9600?
   Serial.println("LBCC RockSat-C warming up...");
-  delay(400);  // Solves Due reset problem
+  // delay(400);  // Solves Due reset problem
   
-  // Prepare input pins and begin interrupts
+  // Prepare port C by setting input and output pins.  
+   DDRC |= B0000001;  // Changes pins 2-7 on port C to inputs
+
   // Pin num, function name, event to listen for
-  // Coincidence gates A, B, C
-  pinMode(gateA, INPUT);
-  attachInterrupt(gateA, interrupt_gate_A, FALLING);
-  pinMode(gateB, INPUT);
-  attachInterrupt(gateB, interrupt_gate_B, FALLING);
-  pinMode(gateC, INPUT);
-  attachInterrupt(gateC, interrupt_gate_C, FALLING);
-  // Individual tubes D, E, F
-  pinMode(pinD, INPUT);
-  attachInterrupt(pinD, interrupt_tube_D, FALLING);
-  pinMode(pinE, INPUT);
-  attachInterrupt(pinE, interrupt_tube_E, FALLING);
-  pinMode(pinF, INPUT);
-  attachInterrupt(pinF, interrupt_tube_F, FALLING);
+  pinMode(tube_interrupt, INPUT);
+  attachInterrupt(tube_interrupt, record_event, FALLING);
   
   // Set up the SD card
   pinMode(SDPin, OUTPUT);
@@ -111,37 +102,15 @@ void write_to_sd(){
   */
 }
 
-/*
-  One function per interrupt, passes time and event description for storage
-*/
-void interrupt_gate_A(){  // events in tubes F and E
-  process_interrupt(micros(), 35);
-}
-void interrupt_gate_B(){  // events in tubes F and D
-  process_interrupt(micros(), 21);
-}
-void interrupt_gate_C(){  // events in tubes E and D
-  process_interrupt(micros(), 14);
-}
-void interrupt_tube_D(){
-  process_interrupt(micros(), 4);
-}
-void interrupt_tube_E(){
-  process_interrupt(micros(), 2);
-}
-void interrupt_tube_F(){
-  process_interrupt(micros(), 1);
-}
-
-void process_interrupt(unsigned long event_time, byte event_tube){
+void record_event(){
   /*
-  Takes timestamp, and 1 byte describing which event was recorded, adds it to array
-  and increments buffer_index.  If array is full, writes active buffer to SD card.
-  Buffer_index overflows from 255 to 0, so it's ready for the secondary buffer.
+  Creates a new entry in the active buffer using the current time and tube status.
+  The status of all tubes is recorded simultaneously via port manipulation.
+  When buffer is full, swaps to secondary buffer and calls write_to_sd().
+  Remember, interrupt functions cannot take parameters.
   */
-  // Should we worry about buffer flip while queued? I doubt it, but maybe.
-  buffer[active_buffer][buffer_index].time = event_time;
-  buffer[active_buffer][buffer_index].tubes = event_tube;
+  buffer[active_buffer][buffer_index].time = micros();
+  buffer[active_buffer][buffer_index].tubes = PINC; // Read all input pins on port C.
   if(buffer_index++ == buffer_max){
     write_to_sd();
   }

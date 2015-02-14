@@ -6,12 +6,12 @@ Author: Levi Willmeth
 #define time_max 60000  // Max runtime
 
 // Geiger tube input pins
-#define SHUTDOWN1 = 6
-#define SHUTDOWN2 = 7
-#define SHUTDOWN3 = 8
-#define SHUTDOWN4 = 9
+#define SHUTDOWN1 6
+#define SHUTDOWN2 7
+#define SHUTDOWN3 8
+#define SHUTDOWN4 9
 
-#define C_GATE 2
+#define COINC_GATE 2
 
 typedef struct gdata {
   /*
@@ -31,15 +31,16 @@ void setup(){
   Serial.begin(115200);
   Serial.println(F("LBCC RockSat-C code warming up..."));
   
-  digitalWrite(SHUTDOWN1, LOW);
-  digitalWrite(SHUTDOWN2, HIGH);
-  digitalWrite(SHUTDOWN3, HIGH);
-  digitalWrite(SHUTDOWN4, LOW);
+  // Set pattern to 1001 during startup.
+  digitalWrite(SHUTDOWN1, HIGH);
+  digitalWrite(SHUTDOWN2, LOW);
+  digitalWrite(SHUTDOWN3, LOW);
+  digitalWrite(SHUTDOWN4, HIGH);
   
   // Prepare input pins and begin interrupts
   // Pin num, function name, event to listen for
-  pinMode(C_GATE, INPUT);
-  attachInterrupt(C_GATE, readTubes, RISING);
+  pinMode(COINC_GATE, INPUT);
+  attachInterrupt(COINC_GATE, readTubes, RISING);
 }
 
 void loop(){
@@ -50,10 +51,12 @@ void loop(){
   than just using an if statement right here.?. 
   */
   while(millis() > time_max){
-    digitalWrite(SHUTDOWN2, HIGH);
-    digitalWrite(SHUTDOWN1, LOW);
-    digitalWrite(SHUTDOWN1, LOW);
-    digitalWrite(SHUTDOWN3, HIGH);
+    // Power off pattern is 0110
+    write_to_sd();
+    digitalWrite(SHUTDOWN2, LOW);
+    digitalWrite(SHUTDOWN1, HIGH);
+    digitalWrite(SHUTDOWN1, HIGH);
+    digitalWrite(SHUTDOWN3, LOW);
   }
 }
 

@@ -2,8 +2,9 @@
 Arduino code for Linn Benton Community College's Rocksat-C 2015 experiment.
 Author: Levi Willmeth
 */
-#define buffer_max 50  // Max size of each buffer
+#define buffer_max 50   // Max size of each buffer
 #define time_max 60000  // Max runtime
+#define DEBUGGING true  // Debugging mode on/off
 
 // Geiger tube input pins
 #define SHUTDOWN1 6
@@ -11,6 +12,7 @@ Author: Levi Willmeth
 #define SHUTDOWN3 8
 #define SHUTDOWN4 9
 
+// Pin for coincidence gate trigger
 #define COINC_GATE 2
 
 typedef struct gdata {
@@ -23,14 +25,13 @@ typedef struct gdata {
 };
 
 gdata buffer[2][buffer_max+1];// 2 buffers, with space for many readings each
-boolean active_buffer = 0;        // determines which buffer is ready for input
+boolean active_buffer = 0;    // determines which buffer is ready for input
 byte buffer_index = 0;        // Counter to determine when the buffer is full
 
 void setup(){
-  // Debugging only, using serial is very slow.
   Serial.begin(115200);
   Serial.println(F("LBCC RockSat-C code warming up..."));
-  
+    
   // Set pattern to 1001 during startup.
   digitalWrite(SHUTDOWN1, HIGH);
   digitalWrite(SHUTDOWN2, LOW);
@@ -48,15 +49,18 @@ void loop(){
   so just wait until shutdown.
   
   I'm not certain that using an interrupt is any better
-  than just using an if statement right here.?. 
+  than just using an if statement right here.?.
   */
-  while(millis() > time_max){
+  if(millis() > time_max){
     // Power off pattern is 0110
     write_to_sd();
-    digitalWrite(SHUTDOWN2, LOW);
-    digitalWrite(SHUTDOWN1, HIGH);
-    digitalWrite(SHUTDOWN1, HIGH);
-    digitalWrite(SHUTDOWN3, LOW);
+    Serial.print(F("\nWriting shutdown pattern..."));
+    while(true){
+      digitalWrite(SHUTDOWN2, LOW);
+      digitalWrite(SHUTDOWN1, HIGH);
+      digitalWrite(SHUTDOWN1, HIGH);
+      digitalWrite(SHUTDOWN3, LOW);
+    }
   }
 }
 
@@ -66,19 +70,21 @@ void write_to_sd(){
   active to inactive buffer.
   */
   active_buffer = !active_buffer; // Switch between buffers
-  /*
-  All of this code is for debugging only, and will be replaced by a
-  write to the SD card.
-  */
-  Serial.print(F("\nWriting buffer "));
-  // !active_buffer refers to the inactive buffer
-  Serial.print(!active_buffer); 
-  Serial.print(F(" to the SD card.\n"));
-  Serial.println(F("First 10 lines of buffer:"));
-  for(int i=0; i<buffer_max; i++){
-    Serial.print(buffer[!active_buffer][i].time);
-    Serial.print(F("\t"));
-    Serial.println(buffer[!active_buffer][i].tubes);
+  if(DEBUGGING){
+    /*
+    All of this code is for debugging only, and will be replaced by an
+    actual write to the SD card.
+    */
+    Serial.print(F("\nWriting buffer "));
+    // !active_buffer refers to the inactive buffer
+    Serial.print(!active_buffer); 
+    Serial.print(F(" to the SD card.\n"));
+    Serial.println(F("First 10 lines of buffer:"));
+    for(int i=0; i<10; i++){
+      Serial.print(buffer[!active_buffer][i].time);
+      Serial.print(F("\t"));
+      Serial.println(buffer[!active_buffer][i].tubes);
+    }
   }
 }
 

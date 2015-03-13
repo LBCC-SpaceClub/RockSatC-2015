@@ -3,14 +3,14 @@ Arduino code for Linn Benton Community College's Rocksat-C 2015 experiment.
 Author: Levi Willmeth
 */
 #define buffer_max 50   // Max size of each buffer
-#define time_max 60000  // Max runtime
+#define time_max 10 * 1000  // Max runtime, in milliseconds
 #define DEBUGGING true  // Debugging mode on/off
 
 // Geiger tube input pins
-#define SHUTDOWN1 6
-#define SHUTDOWN2 7
-#define SHUTDOWN3 8
-#define SHUTDOWN4 9
+#define SHUTDOWN1 3
+#define SHUTDOWN2 4
+#define SHUTDOWN3 5
+#define SHUTDOWN4 6
 
 // Pin for coincidence gate trigger
 #define COINC_GATE 2
@@ -42,6 +42,11 @@ void setup(){
   // Pin num, function name, event to listen for
   pinMode(COINC_GATE, INPUT);
   attachInterrupt(COINC_GATE, readTubes, RISING);
+  
+  if(DEBUGGING){
+    // If debugging, use onboard led as status light.
+    pinMode(13, OUTPUT);
+  }
 }
 
 void loop(){
@@ -56,11 +61,19 @@ void loop(){
     write_to_sd();
     Serial.print(F("\nWriting shutdown pattern..."));
     while(true){
-      digitalWrite(SHUTDOWN2, LOW);
-      digitalWrite(SHUTDOWN1, HIGH);
-      digitalWrite(SHUTDOWN1, HIGH);
-      digitalWrite(SHUTDOWN3, LOW);
+      if(DEBUGGING){
+        // If debugging, turn off the onboard LED when shutdown. 
+        digitalWrite(13, LOW);
+      }
+      digitalWrite(SHUTDOWN1, LOW);
+      digitalWrite(SHUTDOWN2, HIGH);
+      digitalWrite(SHUTDOWN3, HIGH);
+      digitalWrite(SHUTDOWN4, LOW);
     }
+  }
+  if(DEBUGGING){
+    // If debugging, turn on the onboard LED when active. 
+    digitalWrite(13, HIGH);
   }
 }
 

@@ -1,9 +1,11 @@
 /*
-Arduino code for Linn Benton Community College's Rocksat-C 2015 experiment.
+Arduino code for Linn-Benton Community College's Rocksat-C 2015 experiment.
 Author: Levi Willmeth
 */
-#define buffer_max 50   // Max size of each buffer
-#define time_max 10 * 1000  // Max runtime, in milliseconds
+#include <SdFat.h>
+#include <SdFatUtil.h>
+
+#define buffer_max 10   // Max size of each buffer
 #define DEBUGGING true  // Debugging mode on/off
 
 // Geiger tube input pins
@@ -12,104 +14,179 @@ Author: Levi Willmeth
 #define SHUTDOWN3 5
 #define SHUTDOWN4 6
 
-// Pin for coincidence gate trigger
-#define COINC_GATE 2
+// 6 Geiger tube input pins on Analog A0-A5
+// These are read using the PINC block, instead of individual pins.
 
 typedef struct gdata {
-  /*
-  Each reading has a 4 byte timestamp, and 1 byte of data
-  Variables used by interrupts should be called volatile
-  */
-  volatile unsigned long time;// Timestamp, limited to 71! minutes
-  volatile byte tubes;        // 1 byte holds all 6, bit-sized measurements
+  // Each reading has a 4 byte timestamp, and 1 byte of data
+  unsigned long time;// Timestamp, limited to 71! minutes
+  byte tubes;        // 1 byte holds all 6, bit-sized measurements
 };
 
-gdata buffer[2][buffer_max+1];// 2 buffers, with space for many readings each
-boolean active_buffer = 0;    // determines which buffer is ready for input
-byte buffer_index = 0;        // Counter to determine when the buffer is full
+// 2 buffers, with space for many readings each
+gdata buffer[2][buffer_max+1];
+// Variables used inside interrupts should be declared volatile
+volatile boolean active_buffer = 0;// determines which buffer is ready for input
+volatile byte buffer_index = 0;    // Counter to determine when the buffer is full
 
-void setup(){
-  Serial.begin(115200);
-  Serial.println(F("LBCC RockSat-C code warming up..."));
-    
-  // Set pattern to 1001 during startup.
-  digitalWrite(SHUTDOWN1, HIGH);
-  digitalWrite(SHUTDOWN2, LOW);
-  digitalWrite(SHUTDOWN3, LOW);
-  digitalWrite(SHUTDOWN4, HIGH);
-  
-  // Prepare input pins and begin interrupts
-  // Pin num, function name, event to listen for
-  pinMode(COINC_GATE, INPUT);
-  attachInterrupt(COINC_GATE, readTubes, RISING);
-  
-  if(DEBUGGING){
-    // If debugging, use onboard led as status light.
-    pinMode(13, OUTPUT);
-  }
-}
+unsigned long time_max = 60*5*1000;   // Gives us a max run time, in ms.
 
-void loop(){
-  /* The interrupt will take over if an event occurs,
-  so just wait until shutdown.
-  
-  I'm not certain that using an interrupt is any better
-  than just using an if statement right here.?.
-  */
-  if(millis() > time_max){
-    // Power off pattern is 0110
-    write_to_sd();
-    Serial.print(F("\nWriting shutdown pattern..."));
-    while(true){
-      if(DEBUGGING){
-        // If debugging, turn off the onboard LED when shutdown. 
-        digitalWrite(13, LOW);
-      }
-      digitalWrite(SHUTDOWN1, LOW);
-      digitalWrite(SHUTDOWN2, HIGH);
-      digitalWrite(SHUTDOWN3, HIGH);
-      digitalWrite(SHUTDOWN4, LOW);
-    }
-  }
-  if(DEBUGGING){
-    // If debugging, turn on the onboard LED when active. 
-    digitalWrite(13, HIGH);
-  }
-}
+SdFat sd;
+SdFile myFile;
+#define FILE_BASE_NAME "LBCC_"
+char filename[13] = FILE_BASE_NAME "00.CSV";
 
+// =============================================================================
 void write_to_sd(){
   /*
   Takes no parameters, writes active buffer to SD card and toggles from
   active to inactive buffer.
   */
-  active_buffer = !active_buffer; // Switch between buffers
-  if(DEBUGGING){
+  // Switch between buffers
+  active_buffer = !active_buffer;
+  buffer_index = 0;
+    
+  if (!myFile.open("output.txt", O_RDWR | O_CREAT | O_AT_END)) {
+    Serial.println(F("Output file failed to open."));
+  } else {
+    for(int i=0; i<buffer_max; i++){
+        myFile.print(buffer[!active_buffer][i].time);
+        myFile.print(F("\t"));
+        myFile.println( (buffer[!active_buffer][i].tubes), BIN);
+        // Debugging
+        if(DEBUGGING){
+          String temp = String('one' + ' two');
+          Serial.println(temp);
+          Serial.print(buffer[!active_buffer][i].time);
+          Serial.print(F("\t"));
+          Serial.println( (buffer[!active_buffer][i].tubes), BIN);
+        }
+    }
+    myFile.close();
+  }
+  
+//  if(DEBUGGING){
     /*
     All of this code is for debugging only, and will be replaced by an
     actual write to the SD card.
     */
-    Serial.print(F("\nWriting buffer "));
-    // !active_buffer refers to the inactive buffer
-    Serial.print(!active_buffer); 
-    Serial.print(F(" to the SD card.\n"));
-    Serial.println(F("First 10 lines of buffer:"));
-    for(int i=0; i<10; i++){
-      Serial.print(buffer[!active_buffer][i].time);
-      Serial.print(F("\t"));
-      Serial.println(buffer[!active_buffer][i].tubes);
-    }
-  }
+//    Serial.println("\nWriting buffer ");
+//    // !active_buffer refers to the inactive buffer
+//    Serial.print(!active_buffer); 
+//    Serial.print(" to the SD card.\n");
+//    Serial.println("First 10 lines of buffer:");
+//    for(int i=0; i<10; i++){
+//      Serial.print(buffer[!active_buffer][i].time);
+//      Serial.print("\t");
+//      Serial.println(buffer[!active_buffer][i].tubes, BIN);
+//    }
+//    Serial.println("Buffer dumped.");
+//  }
 }
 
+// =============================================================================
 void readTubes(){
   /*
   Takes no parameters, stores time and state of each tube into the buffer.
   */
   buffer[active_buffer][buffer_index].time = micros();
-  // PINC returns the state of all pins on port C, A0 to A5
+  // PINC returns the state of all pins on port C, which includes A0 to A5
   buffer[active_buffer][buffer_index].tubes = PINC;
   // If buffer is full, write results to SD
   if(buffer_index++ == buffer_max){
     write_to_sd();
+  }
+}
+
+unsigned long safeMicros() {
+  extern volatile unsigned long timer0_overflow_count;
+  return((timer0_overflow_count << 8) + TCNT0)*(64/16);
+}
+
+// =============================================================================
+void setup(){
+  Serial.begin(115200);
+  Serial.println(F("LBCC RockSat-C code warming up..."));
+  
+  // Prepare shutdown pins as outputs, allowing them to pull down voltage
+  pinMode(SHUTDOWN1, OUTPUT);
+  pinMode(SHUTDOWN2, OUTPUT);
+  pinMode(SHUTDOWN3, OUTPUT);
+  pinMode(SHUTDOWN4, OUTPUT);
+  
+  // Power on pattern is 0110
+  digitalWrite(SHUTDOWN1, HIGH);
+  digitalWrite(SHUTDOWN2, LOW);
+  digitalWrite(SHUTDOWN3, LOW);
+  digitalWrite(SHUTDOWN4, HIGH);
+  
+  // Prepare SD card
+  pinMode(10, OUTPUT);
+  if(!sd.begin(10, SPI_FULL_SPEED)){
+    Serial.println(F("SD Card failed."));
+  } else {
+    if(DEBUGGING){
+      Serial.println(F("SD Card OK, running at SPI_FULL_SPEED"));
+      
+      const uint8_t BASE_NAME_SIZE = sizeof(FILE_BASE_NAME) - 1;
+      
+      // Check if filename too long
+      if(BASE_NAME_SIZE > 6){
+        Serial.print(F("Error: FILE_BASE_NAME too long!  Using default."));
+      }
+      
+      // If the filename already exists, create a new file with larger number
+      while(sd.exists(filename)){
+        // If the last number is not a 9, increment it
+        if(filename[BASE_NAME_SIZE + 1] != '9'){
+          filename[BASE_NAME_SIZE + 1]++;
+        // Otherwise, if the first number is not a 9, increment it
+        } else if (filename[BASE_NAME_SIZE] != '9') {
+          filename[BASE_NAME_SIZE]++;
+          filename[BASE_NAME_SIZE + 1] = 0;
+        // Lastly, if you're at 99, use a default
+        } else {
+          Serial.println(F("Error: ran out of room! Using default."));
+          filename = "LBCC_A0.CSV";
+        }
+        
+      }
+      
+      Serial.print(F("Opening file: "));
+      Serial.println(filename);
+    }
+//    if (!myFile.open("output.txt", O_RDWR | O_CREAT | O_AT_END)) {
+//      
+//    }
+  }
+  
+  // Prepare input pins and begin interrupts
+  pinMode(2, INPUT);
+  // Interrupt syntax is interrupt num, function name, event to listen for.
+  // On the Uno, interrupt 0 is on digital pin 2. (don't ask)
+  attachInterrupt(0, readTubes, RISING);
+  
+  if(DEBUGGING){
+    // If debugging, use onboard led as status light.
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+  }
+}
+
+// =============================================================================
+void loop(){
+  // The interrupt will take over if an event occurs, so just wait until shutdown.
+  if(millis() > time_max){
+    write_to_sd();
+    Serial.print(F("\nWriting shutdown pattern..."));
+    digitalWrite(13, LOW);
+    while(true){
+      // Power off pattern is 0110
+      digitalWrite(SHUTDOWN1, LOW);
+      digitalWrite(SHUTDOWN2, HIGH);
+      digitalWrite(SHUTDOWN3, HIGH);
+      digitalWrite(SHUTDOWN4, LOW);
+      // Arduino should now be powered off.
+    }
   }
 }

@@ -55,8 +55,6 @@ void write_to_sd(){
         myFile.println( (buffer[!active_buffer][i].tubes), BIN);
         // Debugging
         if(DEBUGGING){
-          String temp = String('one' + ' two');
-          Serial.println(temp);
           Serial.print(buffer[!active_buffer][i].time);
           Serial.print(F("\t"));
           Serial.println( (buffer[!active_buffer][i].tubes), BIN);
@@ -64,24 +62,6 @@ void write_to_sd(){
     }
     myFile.close();
   }
-  
-//  if(DEBUGGING){
-    /*
-    All of this code is for debugging only, and will be replaced by an
-    actual write to the SD card.
-    */
-//    Serial.println("\nWriting buffer ");
-//    // !active_buffer refers to the inactive buffer
-//    Serial.print(!active_buffer); 
-//    Serial.print(" to the SD card.\n");
-//    Serial.println("First 10 lines of buffer:");
-//    for(int i=0; i<10; i++){
-//      Serial.print(buffer[!active_buffer][i].time);
-//      Serial.print("\t");
-//      Serial.println(buffer[!active_buffer][i].tubes, BIN);
-//    }
-//    Serial.println("Buffer dumped.");
-//  }
 }
 
 // =============================================================================
@@ -123,41 +103,35 @@ void setup(){
   // Prepare SD card
   pinMode(10, OUTPUT);
   if(!sd.begin(10, SPI_FULL_SPEED)){
+    // Card failed to initialize, attempt to format or fix.
     Serial.println(F("SD Card failed."));
   } else {
-    if(DEBUGGING){
-      Serial.println(F("SD Card OK, running at SPI_FULL_SPEED"));
-      
-      const uint8_t BASE_NAME_SIZE = sizeof(FILE_BASE_NAME) - 1;
-      
-      // Check if filename too long
-      if(BASE_NAME_SIZE > 6){
-        Serial.print(F("Error: FILE_BASE_NAME too long!  Using default."));
-      }
-      
-      // If the filename already exists, create a new file with larger number
-      while(sd.exists(filename)){
-        // If the last number is not a 9, increment it
-        if(filename[BASE_NAME_SIZE + 1] != '9'){
-          filename[BASE_NAME_SIZE + 1]++;
-        // Otherwise, if the first number is not a 9, increment it
-        } else if (filename[BASE_NAME_SIZE] != '9') {
-          filename[BASE_NAME_SIZE]++;
-          filename[BASE_NAME_SIZE + 1] = 0;
-        // Lastly, if you're at 99, use a default
-        } else {
-          Serial.println(F("Error: ran out of room! Using default."));
-          filename = "LBCC_A0.CSV";
-        }
-        
-      }
-      
+    // Card initialized, create a new file to write into.
+    uint8_t BASE_NAME_SIZE = sizeof(FILE_BASE_NAME) - 1;    
+    // Check if filename too long, if so, use a default.
+    if(BASE_NAME_SIZE > 6){
+      Serial.print(F("Error: FILE_BASE_NAME too long!  Using default."));
+      filename[0] = 'LBCC_00.CSV';
+      BASE_NAME_SIZE = sizeof("LBCC_") - 1;
+    }
+    
+    // If the filename already exists, create a new file with larger number
+    while(sd.exists(filename)){
+      // If the last number is not a 9, increment it
+      if(filename[BASE_NAME_SIZE + 1] != '9'){
+        filename[BASE_NAME_SIZE + 1]++;
+      // Otherwise, if the first number is not a 9, increment it
+      } else if (filename[BASE_NAME_SIZE] != '9') {
+        filename[BASE_NAME_SIZE]++;
+        filename[BASE_NAME_SIZE + 1] = 0;
+      // Lastly, if you're at 99, use a default
+      } else {
+        Serial.println(F("Error: Too many files! Using default."));
+        filename[BASE_NAME_SIZE] = 'A0.CSV';
+      }      
       Serial.print(F("Opening file: "));
       Serial.println(filename);
     }
-//    if (!myFile.open("output.txt", O_RDWR | O_CREAT | O_AT_END)) {
-//      
-//    }
   }
   
   // Prepare input pins and begin interrupts

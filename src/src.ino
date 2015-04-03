@@ -43,11 +43,11 @@ char filename[13] = FILE_BASE_NAME "00.TXT";
 // =============================================================================
 void write_to_sd(){
   /*
-  Takes no parameters, writes inactive buffer to SD card using 
+  Takes no parameters, writes new data in the active buffer to the SD card.
   */
   active_buffer = !active_buffer;      // Switch buffers
   buffer_full_index = buffer_index-1;  // Store index of active buffer
-  buffer_index = 0;                    // Reset active buffer index
+  buffer_index = 0;                    // Reset index of active buffer
     
   if (!myFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) {
     Serial.println(F("Output file failed to open."));
@@ -57,7 +57,6 @@ void write_to_sd(){
         myFile.print(buffer[!active_buffer][i].time);
         myFile.print(F("\t"));
         myFile.println( (buffer[!active_buffer][i].tubes), BIN);
-        // Debugging
         if(DEBUGGING){
           Serial.print(buffer[!active_buffer][i].time);
           Serial.print(F("\t"));
@@ -65,10 +64,10 @@ void write_to_sd(){
         }
     }
     myFile.close();
+    // Buffer has been flushed, so reset the buffer_full index and flags.
+    buffer_full = false;
+    buffer_full_index = 0;
   }
-  // Buffer has been flushed, so reset the buffer_full index and flags.
-  buffer_full = false;
-  buffer_full_index = 0;
 }
 
 // =============================================================================
@@ -76,16 +75,14 @@ void readTubes(){
   /*
   Takes no parameters, stores time and state of each tube into the buffer.
   */
+  // micros() won't increment inside the ISR, but it will return previous value
   buffer[active_buffer][buffer_index].time = micros();
   // PINC returns the state of all pins on port C, which includes A0 to A5
   buffer[active_buffer][buffer_index].tubes = PINC;
   // If buffer is full, write results to SD
   if(buffer_index++ == buffer_max-1){
     // Write the SD card outside of this ISR, so we don't ignore new data.
-//    active_buffer = !active_buffer;    // Switch buffers
-//    buffer_full_index = buffer_index-1;// Store index of active buffer
-//    buffer_index = 0;                  // Reset active buffer index
-    buffer_full = true;                // Set flag to write the buffer
+    buffer_full = true;
   }
 }
 
@@ -146,13 +143,12 @@ void setup(){
   pinMode(2, INPUT);
   // Interrupt syntax is interrupt num, function name, event to listen for.
   // On the Uno, interrupt 0 is on digital pin 2. (don't ask)
+  // On the due, this would be pin # instead of interrupt name
   attachInterrupt(0, readTubes, RISING);
   
-  if(DEBUGGING){
-    // If debugging, use onboard led as status light.
-    pinMode(13, OUTPUT);
-    digitalWrite(13, HIGH);
-  }
+  // Use onboard led as status light.
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
 }
 
 // =============================================================================
@@ -165,9 +161,7 @@ void loop(){
   }
   if(millis() > time_max){
     // Assuming flight has finished, flush buffer and shut down.
-//    active_buffer = !active_buffer;     // Switch buffers
-//    buffer_full_index = buffer_index-1; // Store index of active buffer
-    write_to_sd();                      // Write buffer
+    write_to_sd();                      // Write any buffer data to sd card.
     Serial.print(F("\nWriting shutdown pattern..."));
     digitalWrite(13, LOW);              // Turn off onboard LED
     while(true){

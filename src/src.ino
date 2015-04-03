@@ -1,6 +1,7 @@
 /*
 Arduino code for Linn-Benton Community College's Rocksat-C 2015 experiment.
 Author: Levi Willmeth
+Source available online at https://github.com/lo9key/LBCC-RockSatC-2015/
 */
 #include <SdFat.h>
 #include <SdFatUtil.h>
@@ -14,6 +15,8 @@ Author: Levi Willmeth
 #define SHUTDOWN3 5
 #define SHUTDOWN4 6
 
+#define FILE_BASE_NAME "LBCC_"
+
 // 6 Geiger tube input pins on Analog A0-A5
 // These are read using the PINC block, instead of individual pins.
 
@@ -25,31 +28,32 @@ typedef struct gdata {
 
 // 2 buffers, with space for many readings each
 gdata buffer[2][buffer_max+1];
-// Variables used inside interrupts should be declared volatile
-volatile boolean active_buffer = 0;// determines which buffer is ready for input
-volatile byte buffer_index = 0;    // Counter to determine when the buffer is full
+// Variables changed inside interrupts should be declared volatile
+volatile boolean active_buffer = 0;// Which buffer is ready for input
+volatile byte buffer_index = 0;    // Index of active buffer
+volatile byte buffer_full_index;   // Index of inactive buffer
+volatile boolean buffer_full = false;// Flag for holding state of buffer
 
-unsigned long time_max = 60*5*1000;   // Gives us a max run time, in ms.
+unsigned long time_max = 3600000;   // Gives us a max run time, in ms.
 
 SdFat sd;
 SdFile myFile;
-#define FILE_BASE_NAME "LBCC_"
-char filename[13] = FILE_BASE_NAME "00.CSV";
+char filename[13] = FILE_BASE_NAME "00.TXT";
 
 // =============================================================================
 void write_to_sd(){
   /*
-  Takes no parameters, writes active buffer to SD card and toggles from
-  active to inactive buffer.
+  Takes no parameters, writes inactive buffer to SD card using 
   */
-  // Switch between buffers
-  active_buffer = !active_buffer;
-  buffer_index = 0;
+  active_buffer = !active_buffer;      // Switch buffers
+  buffer_full_index = buffer_index-1;  // Store index of active buffer
+  buffer_index = 0;                    // Reset active buffer index
     
-  if (!myFile.open("output.txt", O_RDWR | O_CREAT | O_AT_END)) {
+  if (!myFile.open(filename, O_RDWR | O_CREAT | O_AT_END)) {
     Serial.println(F("Output file failed to open."));
   } else {
-    for(int i=0; i<buffer_max; i++){
+    // Data from an empty, or partially filled buffer should not be written.
+    for(int i=0; i<buffer_full_index; i++){
         myFile.print(buffer[!active_buffer][i].time);
         myFile.print(F("\t"));
         myFile.println( (buffer[!active_buffer][i].tubes), BIN);
@@ -62,6 +66,9 @@ void write_to_sd(){
     }
     myFile.close();
   }
+  // Buffer has been flushed, so reset the buffer_full index and flags.
+  buffer_full = false;
+  buffer_full_index = 0;
 }
 
 // =============================================================================
@@ -73,14 +80,13 @@ void readTubes(){
   // PINC returns the state of all pins on port C, which includes A0 to A5
   buffer[active_buffer][buffer_index].tubes = PINC;
   // If buffer is full, write results to SD
-  if(buffer_index++ == buffer_max){
-    write_to_sd();
+  if(buffer_index++ == buffer_max-1){
+    // Write the SD card outside of this ISR, so we don't ignore new data.
+//    active_buffer = !active_buffer;    // Switch buffers
+//    buffer_full_index = buffer_index-1;// Store index of active buffer
+//    buffer_index = 0;                  // Reset active buffer index
+    buffer_full = true;                // Set flag to write the buffer
   }
-}
-
-unsigned long safeMicros() {
-  extern volatile unsigned long timer0_overflow_count;
-  return((timer0_overflow_count << 8) + TCNT0)*(64/16);
 }
 
 // =============================================================================
@@ -111,7 +117,7 @@ void setup(){
     // Check if filename too long, if so, use a default.
     if(BASE_NAME_SIZE > 6){
       Serial.print(F("Error: FILE_BASE_NAME too long!  Using default."));
-      filename[0] = 'LBCC_00.CSV';
+      filename[0] = 'LBCC_00.TXT';
       BASE_NAME_SIZE = sizeof("LBCC_") - 1;
     }
     
@@ -127,9 +133,11 @@ void setup(){
       // Lastly, if you're at 99, use a default
       } else {
         Serial.println(F("Error: Too many files! Using default."));
-        filename[BASE_NAME_SIZE] = 'A0.CSV';
-      }      
-      Serial.print(F("Opening file: "));
+        filename[BASE_NAME_SIZE] = 'A0.TXT';
+      }
+    }
+    if(DEBUGGING){
+      Serial.print(F("Creating file: "));
       Serial.println(filename);
     }
   }
@@ -150,10 +158,18 @@ void setup(){
 // =============================================================================
 void loop(){
   // The interrupt will take over if an event occurs, so just wait until shutdown.
+  // Arbitrary delay size without blocking interrupts
+  for(unsigned long i=1; i!=0; i++){
+    // Constantly check buffer flag while waiting for interrupts.
+    if(buffer_full) write_to_sd();
+  }
   if(millis() > time_max){
-    write_to_sd();
+    // Assuming flight has finished, flush buffer and shut down.
+//    active_buffer = !active_buffer;     // Switch buffers
+//    buffer_full_index = buffer_index-1; // Store index of active buffer
+    write_to_sd();                      // Write buffer
     Serial.print(F("\nWriting shutdown pattern..."));
-    digitalWrite(13, LOW);
+    digitalWrite(13, LOW);              // Turn off onboard LED
     while(true){
       // Power off pattern is 0110
       digitalWrite(SHUTDOWN1, LOW);

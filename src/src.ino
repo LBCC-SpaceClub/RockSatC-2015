@@ -6,7 +6,7 @@ Source available online at https://github.com/lo9key/LBCC-RockSatC-2015/
 #include <SdFat.h>
 #include <SdFatUtil.h>
 
-#define buffer_max 10   // Max size of each buffer
+#define buffer_max 50   // Max size of each buffer
 #define DEBUGGING true  // Debugging mode on/off
 
 // Geiger tube input pins
@@ -34,7 +34,11 @@ volatile byte buffer_index = 0;    // Index of active buffer
 volatile byte buffer_full_index;   // Index of inactive buffer
 volatile boolean buffer_full = false;// Flag for holding state of buffer
 
-unsigned long time_max = 3600000;   // Gives us a max run time, in ms.
+// 3600000000 is 60 min
+// 3600000
+// 1,000,000 microseconds per second
+// 1,000 microseconds per second
+unsigned long time_max = 3600000;   // Gives us a max run time, in millis
 
 SdFat sd;
 SdFile myFile;
@@ -120,13 +124,15 @@ void setup(){
     
     // If the filename already exists, create a new file with larger number
     while(sd.exists(filename)){
+      Serial.print(filename);
+      Serial.println(" exists..");
       // If the last number is not a 9, increment it
       if(filename[BASE_NAME_SIZE + 1] != '9'){
         filename[BASE_NAME_SIZE + 1]++;
-      // Otherwise, if the first number is not a 9, increment it
+      // Otherwise, if the first number is not a 9, increment both
       } else if (filename[BASE_NAME_SIZE] != '9') {
         filename[BASE_NAME_SIZE]++;
-        filename[BASE_NAME_SIZE + 1] = 0;
+        filename[BASE_NAME_SIZE + 1] = '0';
       // Lastly, if you're at 99, use a default
       } else {
         Serial.println(F("Error: Too many files! Using default."));
@@ -155,7 +161,8 @@ void setup(){
 void loop(){
   // The interrupt will take over if an event occurs, so just wait until shutdown.
   // Arbitrary delay size without blocking interrupts
-  for(unsigned long i=1; i!=0; i++){
+//  if(DEBUGGING) Serial.println(millis());
+  for(unsigned int i=1; i!=0; i++){
     // Constantly check buffer flag while waiting for interrupts.
     if(buffer_full) write_to_sd();
   }

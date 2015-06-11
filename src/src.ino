@@ -38,8 +38,8 @@ volatile boolean buffer_full = false;// Flag for holding state of buffer
 // 3600000
 // 1,000,000 microseconds per second
 // 1,000 microseconds per second
-unsigned long time_max = 3600000;   // Gives us a max run time, in millis
-
+// 15 min * 60 sec * 1000 ms per sec = 900,000 ms
+unsigned long time_max = 900000;
 SdFat sd;
 SdFile myFile;
 char filename[13] = FILE_BASE_NAME "00.TXT";

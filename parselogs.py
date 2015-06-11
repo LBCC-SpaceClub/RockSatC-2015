@@ -27,4 +27,4 @@ for log in logs:
     if(count is 0):
         print " - " + log + " contained no coincidences."
     else:
-        print " +++ " + count + " coincidences found in " + log
+        print " +++ " + 'count' + " coincidences found in " + log

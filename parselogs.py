@@ -44,30 +44,39 @@ for log in logs:
             # Record which tube(s) received a hit during this event
             for i in range(6):
                 if(tubes[i] == '0'):
-                    tubeResults[i].append(time)
+                    tubeResults[i].append(time/1000000)
         # Graph results using plotly web interface
         # I'm thinking x is time, y is hits
         # with one graph showing all 6 tubes side by side.
         # Simultaneous events should be visible as a rise in 2 tubes.
         tubeData = []
-        for t in tubeResults:
+        for i in range(6):
             tubeData.append(
                 Scatter(
-                    x=t,
-                    y=range( 1, len(t)+1 )
+                    x=tubeResults[i],
+                    y=range( 1, len(tubeResults[i])+1 ),
+                    name="Tube #"+str(i)
                 )
             )
-        # First (working) attempt:
-        # tube0 = Scatter(
-        #     x=tubeResults[0],
-        #     y=range( 1, len(tubeResults[0])+1 )
-        # )
+
+        # Summarize single log results:
+        logTotalHits = 0
+        for t in tubeResults:
+            logTotalHits += len(t)
+        print "\tTotal of ",len(tubeCoincidences),\
+            "coincidences and ",logTotalHits," hits."
+
+        # Send data to graph
         data = Data( tubeData )
         layout = Layout(
-            xaxis = XAxis(type='log', autorange=True),
-            yaxis = YAxis(type='log', autorange=False)
+            title = '2015 LBCC RockSat-C Flight Data',
+            # autosize = False,
+            xaxis = XAxis(title='Time (s)', autorange=False),
+            yaxis = YAxis(title='Events', autorange=False)
+            # xaxis = XAxis(type='log', autorange=True),
+            # yaxis = YAxis(type='log', autorange=False)
         )
-        print tubeData #debug only
+        # print tubeData #debug only
         #fig = Figure(data=data, layout=layout)
         #plot_url = py.plot(fig, filename=log)
 

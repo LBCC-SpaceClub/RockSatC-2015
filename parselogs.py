@@ -21,18 +21,6 @@ if(len(logs) is 0):
 # Aggregate data to determine if a tube is under/over performing
 tubeTotals = [0,0,0,0,0,0]
 
-# Parse radar data for altitude
-radarFile = "NRW-5600 Terrier Improved Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
-with open(radarFile, "r") as f:
-    f.next()
-    print "Time\tAltitude(m)"
-    for line in f:
-        stuff = line.split()
-        time, alt = stuff[1], stuff[9]
-        print time, alt
-    print "Time\tAltitude(m)"
-
-
 for log in logs:
     print "Opening log: " + log
     with open(log, "r") as data:
@@ -97,6 +85,17 @@ for log in logs:
         for event in tubeCoincidences:
             print "\tCoincidence at {} with tubes " \
                   "{}".format(event[0], event[1])
+
+# Parse radar data for altitude
+radarFile = "NRW-5600 Terrier Improved Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
+with open(radarFile, "r") as f:
+    f.next()
+    print "Time\tAltitude(m)"
+    for line in f:
+        stuff = line.split()
+        time, alt = stuff[1], stuff[9]
+        # print time, alt
+    print "Time\tAltitude(m)"
 
 # Summarize tube performance across all logs
 print "\nSummarizing results across all logs:"

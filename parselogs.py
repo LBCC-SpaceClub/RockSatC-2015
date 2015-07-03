@@ -7,8 +7,8 @@ is generated.
 '''
 
 import os, sys
-import plotly.plotly as py
-from plotly.graph_objs import *
+# from plotly.graph_objs import *
+import matplotlib.pyplot as plt
 
 prefix = "LBCC_"
 
@@ -20,6 +20,18 @@ if(len(logs) is 0):
 
 # Aggregate data to determine if a tube is under/over performing
 tubeTotals = [0,0,0,0,0,0]
+
+# Parse radar data for altitude
+radarFile = "NRW-5600 Terrier Improved Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
+with open(radarFile, "r") as f:
+    f.next()
+    print "Time\tAltitude(m)"
+    for line in f:
+        stuff = line.split()
+        time, alt = stuff[1], stuff[9]
+        print time, alt
+    print "Time\tAltitude(m)"
+
 
 for log in logs:
     print "Opening log: " + log
@@ -45,19 +57,25 @@ for log in logs:
             for i in range(6):
                 if(tubes[i] == '0'):
                     tubeResults[i].append(time/1000000)
-        # Graph results using plotly web interface
+
+        # Graph results:
         # I'm thinking x is time, y is hits
         # with one graph showing all 6 tubes side by side.
         # Simultaneous events should be visible as a rise in 2 tubes.
-        tubeData = []
-        for i in range(6):
-            tubeData.append(
-                Scatter(
-                    x=tubeResults[i],
-                    y=range( 1, len(tubeResults[i])+1 ),
-                    name="Tube #"+str(i)
-                )
-            )
+        for tube in tubeResults:
+            plt.plot(list(range(1,len(tube)+1)), tube)
+            # Debugging to see tube times
+            # print tube
+
+        # Also, highlight coincidences seperately
+        plt.plot(list(range(1,len(tube)+1)), tube, marker='.')
+
+        # Display the graph
+        plt.xlabel('Hits (per tube)')
+        plt.ylabel('Time (sec)')
+        plt.title('LBCC 2015 RockSat-C Data')
+        plt.show()
+
 
         # Summarize single log results:
         logTotalHits = 0
@@ -65,20 +83,6 @@ for log in logs:
             logTotalHits += len(t)
         print "\tTotal of ",len(tubeCoincidences),\
             "coincidences and ",logTotalHits," hits."
-
-        # Send data to graph
-        data = Data( tubeData )
-        layout = Layout(
-            title = '2015 LBCC RockSat-C Flight Data',
-            # autosize = False,
-            xaxis = XAxis(title='Time (s)', autorange=False),
-            yaxis = YAxis(title='Events', autorange=False)
-            # xaxis = XAxis(type='log', autorange=True),
-            # yaxis = YAxis(type='log', autorange=False)
-        )
-        # print tubeData #debug only
-        #fig = Figure(data=data, layout=layout)
-        #plot_url = py.plot(fig, filename=log)
 
     # Summarize results
     # Display the results per tube:

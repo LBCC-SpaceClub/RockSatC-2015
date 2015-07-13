@@ -2,8 +2,10 @@ import os, sys
 import matplotlib.pyplot as plt
 
 flight_log = "logs/LBCC_00_Final.TXT"
-radar_log = "logs/RSC2015_RadarData/NRW-5600 Terrier Improved" \
-            " Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
+# radar_log = "logs/RSC2015_RadarData/NRW-5600 Terrier Improved" \
+#             " Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
+radar_log = "logs/RSC2015_RadarData/NRW-5600 Terrier Improved " \
+            "Orion(RockOn-41.113 Koehler) R5 POSDAT 06252015.txt"
 
 coTimes = []
 coAltitudes = []

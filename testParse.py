@@ -30,10 +30,9 @@ with open(flight_log, "r") as f:
         if time >= 600:
             break
 
+        hitTimes.append(time)
         if tubes.count('0')>1:
             coTimes.append(time)
-        else:
-            hitTimes.append(time)
 
         # Increment individual tube counts
         for i in range(6):
@@ -73,7 +72,7 @@ with open(radar_log, "r") as f:
 
 print "Graphing.."
 # subplot(212) designates room for 2 plots, vertical, with plt=1
-# plt.subplot(211)
+plt.subplot(211)
 plt.plot(radTimes, radAltitudes, label='Radar Altitudes', color='k')
 plt.scatter(hitTimes, hitAltitudes, label='Hits', s=.5, color='b')
 plt.scatter(coTimes, coAltitudes, label='Coincidences', color='r')
@@ -92,4 +91,33 @@ plt.legend()
 # plt.scatter(hitTimes, hitRoundedAlts, label='Hits', s=.5, color='b')
 # plt.axis([0, 600, 0, 120000])
 # plt.legend()
+
+#Let's try compensating for time.
+def combos(min, step, list):
+    ''' Returns a total count of objects in list, between min and min+step '''
+    return len([x for x in list if x>=min and x<=min+step])
+
+step = 5000
+hitsPerAlt = []
+altRange = []
+
+for chunk in range(0,130000,step):
+    # Find total hits at this altitude range
+    hitsHere = combos(chunk, step, hitAltitudes)
+    if hitsHere>0:
+        # Find total time (s) spent in this altitude range,
+        # and adjust because each count is 0.1 sec.
+        timeHere = combos(chunk, step, radAltitudes)/10.0
+        # Hits per second is total hits / seconds spent at this altitude
+        hitsPerAlt.append(hitsHere/timeHere)
+        altRange.append(chunk+step)
+
+plt.subplot(212)
+plt.subplots_adjust(hspace = 0.4) # Adjusts graph downward slightly, to fix formatting
+plt.plot(altRange, hitsPerAlt, label='Hits', color='k')
+plt.xlabel('Altitude (m)')
+plt.ylabel('Hits per Second')
+plt.title('Results adjusted for time spent at altitude')
+# plt.axis([0, 600, 0, 120000]) # Using auto range because unsure of the best range to force
+
 plt.show()

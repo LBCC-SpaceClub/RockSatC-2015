@@ -7,21 +7,20 @@ is generated.
 '''
 
 import os, sys
-# from plotly.graph_objs import *
-import matplotlib.pyplot as plt
 
 prefix = "LBCC_"
 
 # Check for log files in the current directory
-logs = [f for f in os.listdir(os.curdir) if f.startswith(prefix)]
+logs = [f for f in os.listdir(os.curdir+"/logs") if f.startswith(prefix)]
 if(len(logs) is 0):
     print "No logs found."
-    sys.exit("Log files must begin with \""+prefix+"\"")
+    sys.exit("Log files must be in the /logs directory and begin with \""+prefix+"\"")
 
 # Aggregate data to determine if a tube is under/over performing
 tubeTotals = [0,0,0,0,0,0]
 
 for log in logs:
+    log = "logs/"+log
     print "Opening log: " + log
     with open(log, "r") as data:
         # Store time of hit for each tube, to use while graphing
@@ -46,25 +45,6 @@ for log in logs:
                 if(tubes[i] == '0'):
                     tubeResults[i].append(time/1000000)
 
-        # Graph results:
-        # I'm thinking x is time, y is hits
-        # with one graph showing all 6 tubes side by side.
-        # Simultaneous events should be visible as a rise in 2 tubes.
-        for tube in tubeResults:
-            plt.plot(list(range(1,len(tube)+1)), tube)
-            # Debugging to see tube times
-            # print tube
-
-        # Also, highlight coincidences seperately
-        plt.plot(list(range(1,len(tube)+1)), tube, marker='.')
-
-        # Display the graph
-        plt.xlabel('Hits (per tube)')
-        plt.ylabel('Time (sec)')
-        plt.title('LBCC 2015 RockSat-C Data')
-        plt.show()
-
-
         # Summarize single log results:
         logTotalHits = 0
         for t in tubeResults:
@@ -85,17 +65,6 @@ for log in logs:
         for event in tubeCoincidences:
             print "\tCoincidence at {} with tubes " \
                   "{}".format(event[0], event[1])
-
-# Parse radar data for altitude
-radarFile = "NRW-5600 Terrier Improved Orion(RockOn-41.113 Koehler) R3 POSDAT 06252015.txt"
-with open(radarFile, "r") as f:
-    f.next()
-    print "Time\tAltitude(m)"
-    for line in f:
-        stuff = line.split()
-        time, alt = stuff[1], stuff[9]
-        # print time, alt
-    print "Time\tAltitude(m)"
 
 # Summarize tube performance across all logs
 print "\nSummarizing results across all logs:"

@@ -19,6 +19,7 @@ if(len(logs) is 0):
 # Aggregate data to determine if a tube is under/over performing
 tubeTotals = [0,0,0,0,0,0]
 
+
 for log in logs:
     log = "logs/"+log
     print "Opening log: " + log

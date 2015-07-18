@@ -13,7 +13,7 @@ hitTimes = []
 hitAltitudes = []
 radTimes = []
 radAltitudes = []
-eachTubeCount = [[] for x in range(6)]
+eachTubeCount = [[] for x in range(6)] # 6 empty lists
 
 # Parse our flight data
 print "Opening flight log: " + flight_log
@@ -74,25 +74,16 @@ with open(radar_log, "r") as f:
 
 print "Graphing.."
 # subplot(212) designates room for 2 plots, vertical, with plt=1
-plt.subplot(211)
-plt.plot(radTimes, radAltitudes, label='Radar Altitudes', color='k')
+# plt.subplot(211)
+# plt.plot(radTimes, radAltitudes, label='Radar Altitudes', color='k')
 plt.scatter(hitTimes, hitAltitudes, label='Hits', s=.5, color='b')
 plt.scatter(coTimes, coAltitudes, label='Coincidences', color='r')
 plt.xlabel('Time (s)')
 plt.ylabel('Altitude (m)')
-plt.title('LBCC RocksatC Results')
+plt.title('Hits and coincidences by altitude')
 plt.axis([0, 600, 0, 120000])
 plt.legend()
-
-# plt.subplot(212) #plt=2
-# hitRoundedAlts = []
-# roundTo = 5000
-# for hit in hitAltitudes:
-#     hitRoundedAlts.append(round(hit/float(roundTo))*hit)
-# plt.plot(radTimes, radAltitudes, label='Radar Altitudes', color='k')
-# plt.scatter(hitTimes, hitRoundedAlts, label='Hits', s=.5, color='b')
-# plt.axis([0, 600, 0, 120000])
-# plt.legend()
+plt.show()
 
 #Let's try compensating for time.
 def combos(min, step, list):
@@ -101,25 +92,29 @@ def combos(min, step, list):
 
 step = 5000
 hitsPerAlt = []
-altRange = []
+cosPerAlt = []
 
 for chunk in range(0,130000,step):
     # Find total hits at this altitude range
     hitsHere = combos(chunk, step, hitAltitudes)
-    if hitsHere>0:
-        # Find total time (s) spent in this altitude range,
-        # and adjust because each count is 0.1 sec.
-        timeHere = combos(chunk, step, radAltitudes)/10.0
-        # Hits per second is total hits / seconds spent at this altitude
-        hitsPerAlt.append(hitsHere/timeHere)
-        altRange.append(chunk+step)
+    cosHere = combos(chunk, step, coAltitudes)
+    # Find total time (s) spent in this altitude range,
+    # and adjust because each count is 0.1 sec.
+    timeHere = combos(chunk, step, radAltitudes)/10.0
 
-plt.subplot(212)
-plt.subplots_adjust(hspace = 0.4) # Adjusts graph downward slightly, to fix formatting
-plt.plot(altRange, hitsPerAlt, label='Hits', color='k')
+    if timeHere>0:
+        hitsPerAlt.append([chunk+step, hitsHere/timeHere])
+        cosPerAlt.append([chunk+step, cosHere/timeHere])
+
+
+# plt.subplot(212)
+# plt.subplots_adjust(hspace = 0.4) # Adjusts graph downward slightly, to fix formatting
+# plt.plot(altRange, hitsPerAlt, 'k-o')
+plt.plot(*zip(*hitsPerAlt), label='Hits', color='b')
+plt.plot(*zip(*cosPerAlt), label='Coincidences', color='r')
 plt.xlabel('Altitude (m)')
 plt.ylabel('Hits per Second')
-plt.title('Results adjusted for time spent at altitude')
-# plt.axis([0, 600, 0, 120000]) # Using auto range because unsure of the best range to force
-
+plt.title('Events adjusted for time spent at 5 km altitude segments')
+plt.axis([0, 120000, 0, 5])
+plt.legend()
 plt.show()

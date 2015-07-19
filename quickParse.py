@@ -23,17 +23,25 @@ tubeTotals = [0,0,0,0,0,0]
 for log in logs:
     log = "logs/"+log
     print "Opening log: " + log
+    minTime = 999
     with open(log, "r") as data:
         # Store time of hit for each tube, to use while graphing
         tubeResults = [ [], [], [], [], [], [] ]
         # Store time and tube status for all coincidences
         tubeCoincidences = []
+        # previous time
+        lastTime = 0
         # For each line in the file
         for line in data.readlines():
             # Break into time, and tubes
             time, tubes = line.split()
             # Time may as well be a number instead of a string
             time = int(time)
+            # Find min time between hits
+            timeBetween = time-lastTime
+            if timeBetween < minTime:
+                minTime = timeBetween
+            lastTime = time
             # Arduino code doesn't include leading zeros, so
             # we have to pad the beginning on short results.
             tubes = tubes.rjust(6, '0')
@@ -55,6 +63,7 @@ for log in logs:
 
     # Summarize results
     # Display the results per tube:
+    print "The minimum time between hits was %d microseconds." % minTime
     for i in range(6):
         print "\tTube {} measured {} hits.".format(i, len(tubeResults[i]))
         # Add this log's results to the totals

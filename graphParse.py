@@ -14,10 +14,26 @@ hitAltitudes = []
 radTimes = []
 radAltitudes = []
 eachTubeCount = [[] for x in range(6)] # 6 empty lists
+tubeDistances = [0,0,0]
+
+def findDistance(list):
+    if len(list) > 2:
+        findPairs = zip(list, list[1:]+list[:1])
+        for pair in findPairs:
+            findDistance(pair)
+    else:
+        assert(len(list) == 2)
+        dist = abs(list[0]-list[1])
+        if dist == 5: dist = 1
+        if dist == 4: dist = 2
+        tubeDistances[dist-1] += 1
 
 # Parse our flight data
 print "Opening flight log: " + flight_log
 with open(flight_log, "r") as f:
+    # dist1 = [[i,j] for i in range(6) for j in range(6) if j-i==1]
+    # dist2 = [[i,j] for i in range(6) for j in range(6) if j-i==2]
+    # dist3 = [[i,j] for i in range(6) for j in range(6) if j-i==3]
     for hit in f:
         '''
         Sample data: 234440923\t111010
@@ -35,11 +51,16 @@ with open(flight_log, "r") as f:
         hitTimes.append(time)
         if tubes.count('0')>1:
             coTimes.append(time)
+            # increment distance tally
+            combos = [i for i in range(6) if tubes[i] == '0']
+            findDistance(combos)
 
         # Increment individual tube counts
         for i in range(6):
                 if(tubes[i] == '0'):
                     eachTubeCount[i].append(time)
+
+print "Tube distance tally complete: ",tubeDistances
 
 # Parse the radar data
 print "Opening radar log: " + radar_log

@@ -68,6 +68,9 @@ def graphEventsVsAlt():
     plt.show()
 
 def graphFreqVsDistance():
+    # We have to double the last distance measurement,
+    # because other two have twice as many possibilities (see geometry)
+    tubeDistances[2] *= 2;
     plt.bar(range(1,4), tubeDistances, align='center')
     plt.xticks(range(1,4), range(1,4))
     plt.xlabel('Distance between coincident tubes')
